@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EC·ANN — Electrocoagulation Optimizer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2236;
+    --border: #1e2d45;
+    --accent: #00d4aa;
+    --accent2: #3b82f6;
+    --accent3: #f59e0b;
+    --fe: #ef4444;
+    --al: #3b82f6;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --display: 'Syne', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── GRID BACKGROUND ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(rgba(0,212,170,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,170,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  /* ── LAYOUT ── */
+  .wrap { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── HEADER ── */
+  header {
+    padding: 20px 0;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(10,14,26,0.92);
+    backdrop-filter: blur(12px);
+  }
+  .header-inner {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .logo {
+    font-family: var(--display);
+    font-weight: 800; font-size: 22px;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+  }
+  .logo span { color: var(--text); }
+  nav { display: flex; gap: 6px; }
+  nav a {
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    text-decoration: none; padding: 6px 14px; border-radius: 6px;
+    border: 1px solid transparent; transition: all .2s;
+  }
+  nav a:hover, nav a.active {
+    color: var(--accent); border-color: var(--accent);
+    background: rgba(0,212,170,0.06);
+  }
+
+  /* ── HERO ── */
+  .hero { padding: 80px 0 60px; text-align: center; }
+  .hero-badge {
+    display: inline-block; font-family: var(--mono); font-size: 11px;
+    color: var(--accent); border: 1px solid rgba(0,212,170,0.3);
+    background: rgba(0,212,170,0.06); padding: 5px 14px; border-radius: 99px;
+    margin-bottom: 24px; letter-spacing: 0.08em;
+  }
+  .hero h1 {
+    font-family: var(--display); font-size: clamp(36px,6vw,68px);
+    font-weight: 800; line-height: 1.08; letter-spacing: -2px;
+    margin-bottom: 20px;
+  }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p {
+    color: var(--muted); font-size: 17px; max-width: 560px;
+    margin: 0 auto 36px; line-height: 1.7;
+  }
+  .hero-cta {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--accent); color: #0a0e1a;
+    font-family: var(--display); font-weight: 700; font-size: 15px;
+    padding: 14px 30px; border-radius: 10px; text-decoration: none;
+    border: none; cursor: pointer; transition: all .2s;
+  }
+  .hero-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,212,170,0.3); }
+
+  /* ── SECTION ── */
+  section { padding: 64px 0; border-top: 1px solid var(--border); }
+  .section-tag {
+    font-family: var(--mono); font-size: 11px; color: var(--accent);
+    letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px;
+  }
+  .section-title {
+    font-family: var(--display); font-size: 32px; font-weight: 700;
+    letter-spacing: -1px; margin-bottom: 10px;
+  }
+  .section-sub { color: var(--muted); max-width: 560px; margin-bottom: 40px; }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 28px;
+  }
+  .card-sm { padding: 20px; border-radius: 12px; }
+
+  /* ── STEP PILLS ── */
+  .steps { display: flex; gap: 0; margin-bottom: 40px; flex-wrap: wrap; }
+  .step {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 18px 10px 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 99px; font-size: 13px; color: var(--muted);
+    cursor: pointer; transition: all .2s;
+    margin: 4px;
+  }
+  .step.active { background: rgba(0,212,170,0.1); border-color: var(--accent); color: var(--accent); }
+  .step-num {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--surface2); font-family: var(--mono); font-size: 11px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .step.active .step-num { background: var(--accent); color: #0a0e1a; font-weight: 700; }
+  .step.done { border-color: rgba(0,212,170,0.3); color: rgba(0,212,170,0.6); }
+  .step.done .step-num { background: rgba(0,212,170,0.2); color: var(--accent); }
+
+  /* ── UPLOAD ZONE ── */
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: 16px;
+    padding: 56px 32px; text-align: center; cursor: pointer;
+    transition: all .3s; position: relative; overflow: hidden;
+  }
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent); background: rgba(0,212,170,0.04);
+  }
+  .upload-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .upload-icon {
+    width: 64px; height: 64px; margin: 0 auto 16px;
+    background: rgba(0,212,170,0.1); border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+  }
+  .upload-zone h3 { font-family: var(--display); font-size: 20px; margin-bottom: 8px; }
+  .upload-zone p { color: var(--muted); font-size: 13px; }
+  .upload-zone .format-hint {
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 16px;
+    font-family: var(--mono); font-size: 11px; color: var(--accent);
+    background: rgba(0,212,170,0.08); padding: 6px 14px; border-radius: 6px;
+  }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+  thead { background: var(--surface2); }
+  th {
+    padding: 10px 14px; text-align: left; font-weight: 500; color: var(--muted);
+    text-transform: uppercase; font-size: 10px; letter-spacing: 0.08em;
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  td { padding: 9px 14px; border-bottom: 1px solid rgba(30,45,69,0.6); white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .td-fe { color: var(--fe); }
+  .td-al { color: var(--al); }
+  .td-num { text-align: right; }
+
+  /* ── FORM GRID ── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media(max-width: 640px) { .form-grid, .form-grid-3 { grid-template-columns: 1fr; } }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label {
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .field input, .field select {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); font-family: var(--mono); font-size: 14px;
+    padding: 10px 14px; border-radius: 8px; outline: none; transition: border-color .2s;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+  .field .unit {
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+    margin-top: 2px;
+  }
+  .field select option { background: var(--surface2); }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 24px; border-radius: 10px; font-family: var(--display);
+    font-weight: 600; font-size: 14px; border: none; cursor: pointer;
+    transition: all .2s; text-decoration: none;
+  }
+  .btn-primary { background: var(--accent); color: #0a0e1a; }
+  .btn-primary:hover { box-shadow: 0 4px 20px rgba(0,212,170,0.35); transform: translateY(-1px); }
+  .btn-secondary {
+    background: transparent; color: var(--accent);
+    border: 1px solid rgba(0,212,170,0.4);
+  }
+  .btn-secondary:hover { background: rgba(0,212,170,0.08); }
+  .btn-ghost { background: var(--surface2); color: var(--text); }
+  .btn-ghost:hover { background: var(--border); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+
+  /* ── METRIC CARDS ── */
+  .metrics-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 24px; }
+  @media(max-width:700px) { .metrics-grid { grid-template-columns: repeat(2,1fr); } }
+  .metric-card { background: var(--surface2); border-radius: 12px; padding: 16px 18px; }
+  .metric-label { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+  .metric-value { font-family: var(--display); font-size: 28px; font-weight: 700; line-height: 1; }
+  .metric-sub { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .metric-green { color: #22c55e; }
+  .metric-blue  { color: var(--al); }
+  .metric-amber { color: var(--accent3); }
+  .metric-red   { color: var(--fe); }
+
+  /* ── RESULT CARD ── */
+  .result-block {
+    border-radius: 16px; border: 1px solid var(--border);
+    overflow: hidden; margin-bottom: 20px;
+  }
+  .result-header {
+    padding: 14px 20px; display: flex;
+    align-items: center; justify-content: space-between;
+  }
+  .result-header.fe { background: rgba(239,68,68,0.1); border-bottom: 1px solid rgba(239,68,68,0.2); }
+  .result-header.al { background: rgba(59,130,246,0.1); border-bottom: 1px solid rgba(59,130,246,0.2); }
+  .result-title { font-family: var(--display); font-size: 17px; font-weight: 700; }
+  .result-title.fe { color: var(--fe); }
+  .result-title.al { color: var(--al); }
+  .badge-best {
+    font-family: var(--mono); font-size: 10px; font-weight: 500;
+    background: var(--accent); color: #0a0e1a; padding: 3px 10px; border-radius: 99px;
+  }
+  .result-body { padding: 20px; }
+  .param-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 16px; }
+  .param-item {
+    background: var(--surface2); border-radius: 10px; padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .param-lbl { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; }
+  .param-val { font-family: var(--display); font-size: 20px; font-weight: 700; }
+  .removal-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .removal-item {
+    background: var(--surface2); border-radius: 10px; padding: 14px;
+    text-align: center; border: 1px solid var(--border);
+  }
+  .removal-lbl { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+  .removal-pct { font-family: var(--display); font-size: 30px; font-weight: 800; line-height: 1; }
+  .removal-flow { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+  /* ── ANN ARCHITECTURE VIZ ── */
+  .arch-svg { width: 100%; max-width: 600px; margin: 0 auto; display: block; }
+
+  /* ── TRAINING STATUS ── */
+  .train-log {
+    background: #050810; border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; font-family: var(--mono); font-size: 12px;
+    max-height: 200px; overflow-y: auto; color: #4ade80;
+  }
+  .train-log .log-line { margin-bottom: 4px; }
+  .train-log .log-dim { color: var(--muted); }
+  .train-log .log-warn { color: var(--accent3); }
+  .train-log .log-err { color: var(--fe); }
+
+  /* ── PROGRESS BAR ── */
+  .progress-wrap { background: var(--surface2); border-radius: 99px; height: 6px; overflow: hidden; }
+  .progress-bar {
+    height: 100%; border-radius: 99px; background: var(--accent);
+    transition: width .4s ease; width: 0%;
+  }
+
+  /* ── TABS ── */
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+  .tab {
+    padding: 10px 20px; font-family: var(--mono); font-size: 12px;
+    color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent;
+    transition: all .2s; margin-bottom: -1px;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── CHART CONTAINER ── */
+  .chart-box { position: relative; height: 280px; }
+
+  /* ── SENSITIVITY ── */
+  .sens-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media(max-width:700px) { .sens-grid { grid-template-columns: 1fr; } }
+
+  /* ── ALERTS ── */
+  .alert {
+    padding: 12px 16px; border-radius: 10px; font-size: 13px;
+    display: flex; align-items: flex-start; gap: 10px; margin-bottom: 16px;
+  }
+  .alert-info { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); color: #93c5fd; }
+  .alert-success { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); color: #86efac; }
+  .alert-warn { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25); color: #fcd34d; }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border); padding: 32px 0;
+    text-align: center; color: var(--muted); font-size: 13px;
+  }
+  footer strong { color: var(--accent); font-family: var(--display); }
+
+  /* ── HIDDEN ── */
+  .hidden { display: none !important; }
+  .fade-in { animation: fadeIn .4s ease; }
+  @keyframes fadeIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: none; } }
+
+  /* ── TEMPLATE HINT ── */
+  .template-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .col-tag { display: inline-block; font-family: var(--mono); font-size: 11px; padding: 3px 10px; border-radius: 6px; margin: 2px; }
+  .col-tag.input { background: rgba(0,212,170,0.1); color: var(--accent); border: 1px solid rgba(0,212,170,0.25); }
+  .col-tag.fe { background: rgba(239,68,68,0.1); color: var(--fe); border: 1px solid rgba(239,68,68,0.25); }
+  .col-tag.al { background: rgba(59,130,246,0.1); color: var(--al); border: 1px solid rgba(59,130,246,0.25); }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="wrap header-inner">
+    <div class="logo">EC<span>·</span>ANN</div>
+    <nav>
+      <a href="#upload" class="active" onclick="setNav(this)">Upload</a>
+      <a href="#train" onclick="setNav(this)">Train ANN</a>
+      <a href="#optimize" onclick="setNav(this)">Optimize</a>
+      <a href="#charts" onclick="setNav(this)">Charts</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ── HERO ── -->
+<div class="wrap">
+  <div class="hero">
+    <div class="hero-badge">⚡ Artificial Neural Network · Electrocoagulation</div>
+    <h1>Textile Wastewater<br><em>ANN Optimizer</em></h1>
+    <p>Upload your experimental Excel data, train a neural network in seconds, and get the optimal EC operating parameters for maximum COD & turbidity removal.</p>
+    <a href="#upload" class="hero-cta">Start with your data →</a>
+  </div>
+
+  <!-- Steps indicator -->
+  <div class="steps">
+    <div class="step active" id="s1"><div class="step-num">1</div> Upload Excel</div>
+    <div class="step" id="s2"><div class="step-num">2</div> Preview Data</div>
+    <div class="step" id="s3"><div class="step-num">3</div> Train ANN</div>
+    <div class="step" id="s4"><div class="step-num">4</div> Enter Wastewater</div>
+    <div class="step" id="s5"><div class="step-num">5</div> Get Results</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SECTION 1 — UPLOAD
+══════════════════════════════════════════ -->
+<section id="upload">
+  <div class="wrap">
+    <div class="section-tag">Step 01</div>
+    <div class="section-title">Upload your Excel file</div>
+    <p class="section-sub">Upload your experiment data in .xlsx or .xls format. Your file must have the columns shown below.</p>
+
+    <!-- Column format guide -->
+    <div class="card card-sm" style="margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <span style="font-family:var(--mono);font-size:11px;color:var(--accent)">REQUIRED COLUMNS IN YOUR EXCEL FILE</span>
+      </div>
+      <div class="template-grid">
+        <div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-family:var(--mono)">INPUT PARAMETERS (what you controlled)</div>
+          <div>
+            <span class="col-tag input">Time_min</span>
+            <span class="col-tag input">Current_Density_A_m2</span>
+            <span class="col-tag input">Initial_pH</span>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-family:var(--mono)">OUTPUT MEASUREMENTS (what you measured)</div>
+          <div>
+            <span class="col-tag fe">Fe_COD_Removal</span>
+            <span class="col-tag fe">Fe_Turbidity_Removal</span>
+            <span class="col-tag al">Al_COD_Removal</span>
+            <span class="col-tag al">Al_Turbidity_Removal</span>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-ghost" style="font-size:12px;padding:8px 16px" onclick="downloadTemplate()">⬇ Download Template Excel</button>
+        <button class="btn btn-ghost" style="font-size:12px;padding:8px 16px" onclick="loadSampleData()">🔬 Use our 14-experiment sample data</button>
+      </div>
+    </div>
+
+    <!-- Upload Zone -->
+    <div class="upload-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="handleFile(this.files[0])">
+      <div class="upload-icon">📊</div>
+      <h3>Drop your Excel file here</h3>
+      <p>or click to browse files</p>
+      <div class="format-hint">📁 .xlsx · .xls · .csv accepted</div>
+    </div>
+
+    <!-- Data preview (hidden initially) -->
+    <div id="dataPreview" class="hidden" style="margin-top:32px">
+      <div class="fade-in">
+        <div class="alert alert-success">
+          <span>✅</span>
+          <span id="loadMsg">Data loaded successfully!</span>
+        </div>
+        <div class="metrics-grid" id="dataMetrics"></div>
+        <div class="table-wrap">
+          <table id="dataTable">
+            <thead id="dataHead"></thead>
+            <tbody id="dataBody"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:20px;text-align:right">
+          <button class="btn btn-primary" onclick="scrollTo('train');activateStep(3)">
+            Train ANN with this data →
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════
+     SECTION 2 — TRAIN ANN
+══════════════════════════════════════════ -->
+<section id="train">
+  <div class="wrap">
+    <div class="section-tag">Step 02</div>
+    <div class="section-title">Train the Neural Network</div>
+    <p class="section-sub">The ANN learns patterns from your experiments. MinMax scaling normalizes all inputs before training.</p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start">
+      <!-- ANN Architecture Visual -->
+      <div class="card">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px">ANN Architecture</div>
+        <svg class="arch-svg" viewBox="0 0 400 280" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="ar" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+              <path d="M1 1L6 4L1 7" fill="none" stroke="#1e2d45" stroke-width="1.5"/>
+            </marker>
+          </defs>
+          <!-- Connection lines -->
+          <g stroke="#1e2d45" stroke-width="0.8" fill="none">
+            <!-- Input to H1 -->
+            <line x1="52" y1="70"  x2="148" y2="50"/><line x1="52" y1="70"  x2="148" y2="100"/>
+            <line x1="52" y1="70"  x2="148" y2="150"/><line x1="52" y1="70"  x2="148" y2="200"/>
+            <line x1="52" y1="140" x2="148" y2="50"/><line x1="52" y1="140" x2="148" y2="100"/>
+            <line x1="52" y1="140" x2="148" y2="150"/><line x1="52" y1="140" x2="148" y2="200"/>
+            <line x1="52" y1="210" x2="148" y2="50"/><line x1="52" y1="210" x2="148" y2="100"/>
+            <line x1="52" y1="210" x2="148" y2="150"/><line x1="52" y1="210" x2="148" y2="200"/>
+            <!-- H1 to H2 -->
+            <line x1="172" y1="50"  x2="228" y2="80"/><line x1="172" y1="50"  x2="228" y2="140"/>
+            <line x1="172" y1="50"  x2="228" y2="200"/>
+            <line x1="172" y1="100" x2="228" y2="80"/><line x1="172" y1="100" x2="228" y2="140"/>
+            <line x1="172" y1="100" x2="228" y2="200"/>
+            <line x1="172" y1="150" x2="228" y2="80"/><line x1="172" y1="150" x2="228" y2="140"/>
+            <line x1="172" y1="150" x2="228" y2="200"/>
+            <line x1="172" y1="200" x2="228" y2="80"/><line x1="172" y1="200" x2="228" y2="140"/>
+            <line x1="172" y1="200" x2="228" y2="200"/>
+            <!-- H2 to Output -->
+            <line x1="252" y1="80"  x2="348" y2="60"/><line x1="252" y1="80"  x2="348" y2="120"/>
+            <line x1="252" y1="80"  x2="348" y2="180"/><line x1="252" y1="80"  x2="348" y2="240"/>
+            <line x1="252" y1="140" x2="348" y2="60"/><line x1="252" y1="140" x2="348" y2="120"/>
+            <line x1="252" y1="140" x2="348" y2="180"/><line x1="252" y1="140" x2="348" y2="240"/>
+            <line x1="252" y1="200" x2="348" y2="60"/><line x1="252" y1="200" x2="348" y2="120"/>
+            <line x1="252" y1="200" x2="348" y2="180"/><line x1="252" y1="200" x2="348" y2="240"/>
+          </g>
+          <!-- Highlighted weights (amber) -->
+          <g stroke="#00d4aa" stroke-width="2" fill="none" opacity="0.6">
+            <line x1="52" y1="140" x2="148" y2="100"/>
+            <line x1="172" y1="100" x2="228" y2="140"/>
+            <line x1="252" y1="140" x2="348" y2="60"/>
+            <line x1="252" y1="140" x2="348" y2="180"/>
+          </g>
+          <!-- Input nodes -->
+          <g fill="#111827" stroke="#00d4aa" stroke-width="1.5">
+            <circle cx="52" cy="70"  r="20"/><circle cx="52" cy="140" r="20"/><circle cx="52" cy="210" r="20"/>
+          </g>
+          <text x="52" y="74"  text-anchor="middle" fill="#00d4aa" font-family="DM Mono" font-size="8">pH</text>
+          <text x="52" y="144" text-anchor="middle" fill="#00d4aa" font-family="DM Mono" font-size="8">Time</text>
+          <text x="52" y="214" text-anchor="middle" fill="#00d4aa" font-family="DM Mono" font-size="7">Current</text>
+          <!-- H1 nodes -->
+          <g fill="#111827" stroke="#7c3aed" stroke-width="1.2">
+            <circle cx="160" cy="50"  r="16"/><circle cx="160" cy="100" r="16"/>
+            <circle cx="160" cy="150" r="16"/><circle cx="160" cy="200" r="16"/>
+          </g>
+          <g fill="#a78bfa" font-family="DM Mono" font-size="7" text-anchor="middle">
+            <text x="160" y="53">H1</text><text x="160" y="103">H2</text>
+            <text x="160" y="153">H3</text><text x="160" y="203">H4</text>
+          </g>
+          <!-- H2 nodes -->
+          <g fill="#111827" stroke="#0ea5e9" stroke-width="1.2">
+            <circle cx="240" cy="80"  r="16"/><circle cx="240" cy="140" r="16"/><circle cx="240" cy="200" r="16"/>
+          </g>
+          <g fill="#7dd3fc" font-family="DM Mono" font-size="7" text-anchor="middle">
+            <text x="240" y="83">H5</text><text x="240" y="143">H6</text><text x="240" y="203">H7</text>
+          </g>
+          <!-- Output nodes -->
+          <g fill="#111827" stroke="#ef4444" stroke-width="1.2">
+            <circle cx="360" cy="60"  r="18"/><circle cx="360" cy="120" r="18"/>
+          </g>
+          <g fill="#111827" stroke="#3b82f6" stroke-width="1.2">
+            <circle cx="360" cy="180" r="18"/><circle cx="360" cy="240" r="18"/>
+          </g>
+          <g font-family="DM Mono" font-size="6" text-anchor="middle">
+            <text x="360" y="57"  fill="#fca5a5">Fe</text><text x="360" y="64"  fill="#fca5a5">COD</text>
+            <text x="360" y="117" fill="#fca5a5">Fe</text><text x="360" y="124" fill="#fca5a5">Turb</text>
+            <text x="360" y="177" fill="#93c5fd">Al</text><text x="360" y="184" fill="#93c5fd">COD</text>
+            <text x="360" y="237" fill="#93c5fd">Al</text><text x="360" y="244" fill="#93c5fd">Turb</text>
+          </g>
+          <!-- Layer labels -->
+          <text x="52"  y="258" text-anchor="middle" fill="#475569" font-family="DM Mono" font-size="9">Input</text>
+          <text x="160" y="258" text-anchor="middle" fill="#475569" font-family="DM Mono" font-size="9">Hidden 1</text>
+          <text x="240" y="258" text-anchor="middle" fill="#475569" font-family="DM Mono" font-size="9">Hidden 2</text>
+          <text x="360" y="258" text-anchor="middle" fill="#475569" font-family="DM Mono" font-size="9">Output</text>
+        </svg>
+      </div>
+
+      <!-- Training config + log -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card card-sm">
+          <div style="font-family:var(--mono);font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px">Training Configuration</div>
+          <div class="form-grid">
+            <div class="field">
+              <label>Architecture</label>
+              <select id="archSelect">
+                <option value="8,4">8 → 4 (recommended)</option>
+                <option value="16,8">16 → 8 (deeper)</option>
+                <option value="8,4,2">8 → 4 → 2 (3 layers)</option>
+                <option value="16,8,4">16 → 8 → 4 (large)</option>
+                <option value="8">8 (single layer)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Activation</label>
+              <select id="activSelect">
+                <option value="relu">ReLU (default)</option>
+                <option value="tanh">Tanh</option>
+                <option value="logistic">Logistic</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Regularization (alpha)</label>
+              <select id="alphaSelect">
+                <option value="0.1">0.1 (recommended)</option>
+                <option value="0.01">0.01</option>
+                <option value="0.001">0.001</option>
+                <option value="1.0">1.0 (strong)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Max iterations</label>
+              <select id="iterSelect">
+                <option value="3000">3000</option>
+                <option value="5000">5000 (thorough)</option>
+                <option value="1000">1000 (fast)</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary" style="margin-top:16px;width:100%" id="trainBtn" onclick="trainANN()" disabled>
+            🧠 Train Neural Network
+          </button>
+          <div style="margin-top:12px">
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:6px">
+              <span>Training progress</span><span id="progTxt">—</span>
+            </div>
+            <div class="progress-wrap"><div class="progress-bar" id="progBar"></div></div>
+          </div>
+        </div>
+        <div class="train-log" id="trainLog">
+          <div class="log-line log-dim">// Waiting for data upload...</div>
+          <div class="log-line log-dim">// Upload your Excel file in Step 01 to begin</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Accuracy results -->
+    <div id="accuracySection" class="hidden" style="margin-top:32px">
+      <div class="fade-in">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:16px">Model Accuracy — LOOCV Results</div>
+        <div class="metrics-grid" id="accuracyCards"></div>
+        <div style="text-align:right;margin-top:16px">
+          <button class="btn btn-primary" onclick="scrollTo('optimize');activateStep(4)">
+            Optimize with trained ANN →
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════
+     SECTION 3 — OPTIMIZE
+══════════════════════════════════════════ -->
+<section id="optimize">
+  <div class="wrap">
+    <div class="section-tag">Step 03</div>
+    <div class="section-title">Enter your wastewater values</div>
+    <p class="section-sub">The ANN will find the best EC operating parameters for your specific sample.</p>
+
+    <div class="card" style="margin-bottom:24px">
+      <div style="font-family:var(--mono);font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:18px">Your wastewater characteristics</div>
+      <div class="form-grid-3" style="margin-bottom:20px">
+        <div class="field">
+          <label>Initial COD</label>
+          <input type="number" id="iCOD" value="850" min="0" max="20000">
+          <div class="unit">mg/L</div>
+        </div>
+        <div class="field">
+          <label>Initial Turbidity</label>
+          <input type="number" id="iTurb" value="120" min="0" max="5000">
+          <div class="unit">NTU</div>
+        </div>
+        <div class="field">
+          <label>Initial pH</label>
+          <input type="number" id="ipH" value="7.5" min="1" max="14" step="0.1">
+          <div class="unit">—</div>
+        </div>
+        <div class="field">
+          <label>Colour</label>
+          <input type="number" id="iColour" value="400" min="0" max="10000">
+          <div class="unit">Pt-Co / ADMI</div>
+        </div>
+        <div class="field">
+          <label>Conductivity</label>
+          <input type="number" id="iCond" value="2.5" min="0" max="50" step="0.1">
+          <div class="unit">mS/cm</div>
+        </div>
+      </div>
+      <div class="form-grid" style="margin-bottom:20px">
+        <div class="field">
+          <label>Electrode preference</label>
+          <select id="iElectrode">
+            <option value="both">Both Fe & Al (compare)</option>
+            <option value="Fe">Iron (Fe) only</option>
+            <option value="Al">Aluminium (Al) only</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Optimization priority</label>
+          <select id="iPriority">
+            <option value="both">Both COD & Turbidity</option>
+            <option value="cod">Maximize COD removal</option>
+            <option value="turb">Maximize Turbidity removal</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" style="width:100%" id="optimBtn" onclick="runOptimize()" disabled>
+        🎯 Get ANN Recommendation
+      </button>
+    </div>
+
+    <!-- Results area -->
+    <div id="resultsArea" class="hidden"></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════
+     SECTION 4 — CHARTS
+══════════════════════════════════════════ -->
+<section id="charts">
+  <div class="wrap">
+    <div class="section-tag">Step 04</div>
+    <div class="section-title">ANN Analysis Charts</div>
+    <p class="section-sub">Visualize model predictions, sensitivity analysis, and effect of each parameter.</p>
+
+    <div class="tabs">
+      <div class="tab active" onclick="showTab('tab-parity',this)">Predicted vs Observed</div>
+      <div class="tab" onclick="showTab('tab-ph',this)">pH Effect</div>
+      <div class="tab" onclick="showTab('tab-time',this)">Time Effect</div>
+      <div class="tab" onclick="showTab('tab-current',this)">Current Effect</div>
+    </div>
+
+    <div id="tab-parity">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div class="card"><div class="chart-box"><canvas id="chartFeCOD"></canvas></div><div style="text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px">Fe — COD Removal</div></div>
+        <div class="card"><div class="chart-box"><canvas id="chartFeTurb"></canvas></div><div style="text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px">Fe — Turbidity Removal</div></div>
+        <div class="card"><div class="chart-box"><canvas id="chartAlCOD"></canvas></div><div style="text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px">Al — COD Removal</div></div>
+        <div class="card"><div class="chart-box"><canvas id="chartAlTurb"></canvas></div><div style="text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px">Al — Turbidity Removal</div></div>
+      </div>
+    </div>
+
+    <div id="tab-ph" class="hidden">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div class="card"><div class="chart-box"><canvas id="chartPhFe"></canvas></div><div style="text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px">Fe — pH Effect</div></div>
+        <div class="card"><div class="chart-box"><canvas id="chartPhAl"></canvas></div><div style="text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px">Al — pH Effect</div></div>
+      </div>
+    </div>
+
+    <div id="tab-time" class="hidden">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div class="card"><div class="chart-box"><canvas id="chartTimeFe"></canvas></div><div style="text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px">Fe — Time Effect</div></div>
+        <div class="card"><div class="chart-box"><canvas id="chartTimeAl"></canvas></div><div style="text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px">Al — Time Effect</div></div>
+      </div>
+    </div>
+
+    <div id="tab-current" class="hidden">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div class="card"><div class="chart-box"><canvas id="chartCurrFe"></canvas></div><div style="text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px">Fe — Current Density Effect</div></div>
+        <div class="card"><div class="chart-box"><canvas id="chartCurrAl"></canvas></div><div style="text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px">Al — Current Density Effect</div></div>
+      </div>
+    </div>
+
+    <div id="chartsEmpty" style="padding:60px;text-align:center;color:var(--muted);font-family:var(--mono);font-size:13px">
+      Train the ANN first to see charts
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><strong>EC·ANN</strong> — Electrocoagulation ANN Optimizer for Textile Wastewater</p>
+    <p style="margin-top:6px;font-size:12px">Fe & Al Electrodes · No Supporting Electrolyte · MinMaxScaler · LOOCV Validation</p>
+  </div>
+</footer>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// GLOBAL STATE
+// ══════════════════════════════════════════════════════════════════
+let DATA = null;            // Loaded experiment rows
+let MODELS = {};            // Trained ANN weights (simple JS implementation)
+let METRICS = {};           // LOOCV metrics
+let LOOCV_PREDS = {};       // LOOCV predictions
+let SCALER_X = null;        // MinMax scaler params for inputs
+let SCALERS_Y = {};         // MinMax scaler params per target
+let CHARTS_BUILT = false;
+
+const TARGETS = ['Fe_COD_Removal','Fe_Turbidity_Removal','Al_COD_Removal','Al_Turbidity_Removal'];
+const TARGET_LABELS = {
+  'Fe_COD_Removal':'Fe — COD Removal',
+  'Fe_Turbidity_Removal':'Fe — Turbidity Removal',
+  'Al_COD_Removal':'Al — COD Removal',
+  'Al_Turbidity_Removal':'Al — Turbidity Removal'
+};
+
+// ══════════════════════════════════════════════════════════════════
+// SAMPLE DATA (14 experiments)
+// ══════════════════════════════════════════════════════════════════
+const SAMPLE = [
+  {Time_min:15,Current_Density_A_m2:30,Initial_pH:5, Fe_COD_Removal:17.37,Fe_Turbidity_Removal:0.78, Al_COD_Removal:61.75,Al_Turbidity_Removal:76.20},
+  {Time_min:15,Current_Density_A_m2:30,Initial_pH:6, Fe_COD_Removal:37.25,Fe_Turbidity_Removal:76.25,Al_COD_Removal:44.36,Al_Turbidity_Removal:71.66},
+  {Time_min:15,Current_Density_A_m2:30,Initial_pH:7, Fe_COD_Removal:63.45,Fe_Turbidity_Removal:83.25,Al_COD_Removal:19.56,Al_Turbidity_Removal:49.01},
+  {Time_min:15,Current_Density_A_m2:30,Initial_pH:8, Fe_COD_Removal:54.85,Fe_Turbidity_Removal:44.55,Al_COD_Removal:18.23,Al_Turbidity_Removal:41.45},
+  {Time_min:15,Current_Density_A_m2:30,Initial_pH:9, Fe_COD_Removal:24.13,Fe_Turbidity_Removal:0.38, Al_COD_Removal:14.40,Al_Turbidity_Removal:38.89},
+  {Time_min:15,Current_Density_A_m2:30,Initial_pH:7, Fe_COD_Removal:59.89,Fe_Turbidity_Removal:81.20,Al_COD_Removal:61.06,Al_Turbidity_Removal:82.06},
+  {Time_min:15,Current_Density_A_m2:40,Initial_pH:7, Fe_COD_Removal:63.00,Fe_Turbidity_Removal:84.16,Al_COD_Removal:50.98,Al_Turbidity_Removal:83.09},
+  {Time_min:15,Current_Density_A_m2:50,Initial_pH:7, Fe_COD_Removal:68.11,Fe_Turbidity_Removal:86.25,Al_COD_Removal:46.94,Al_Turbidity_Removal:83.09},
+  {Time_min:15,Current_Density_A_m2:60,Initial_pH:7, Fe_COD_Removal:61.89,Fe_Turbidity_Removal:89.28,Al_COD_Removal:52.25,Al_Turbidity_Removal:82.97},
+  {Time_min:5, Current_Density_A_m2:30,Initial_pH:7, Fe_COD_Removal:7.22, Fe_Turbidity_Removal:0.00, Al_COD_Removal:46.12,Al_Turbidity_Removal:84.19},
+  {Time_min:10,Current_Density_A_m2:30,Initial_pH:7, Fe_COD_Removal:21.99,Fe_Turbidity_Removal:0.56, Al_COD_Removal:51.95,Al_Turbidity_Removal:79.69},
+  {Time_min:15,Current_Density_A_m2:30,Initial_pH:7, Fe_COD_Removal:67.61,Fe_Turbidity_Removal:84.02,Al_COD_Removal:62.96,Al_Turbidity_Removal:83.18},
+  {Time_min:20,Current_Density_A_m2:30,Initial_pH:7, Fe_COD_Removal:64.66,Fe_Turbidity_Removal:87.74,Al_COD_Removal:57.21,Al_Turbidity_Removal:77.60},
+  {Time_min:25,Current_Density_A_m2:30,Initial_pH:7, Fe_COD_Removal:55.01,Fe_Turbidity_Removal:89.17,Al_COD_Removal:60.53,Al_Turbidity_Removal:74.60},
+];
+
+// ══════════════════════════════════════════════════════════════════
+// NAV
+// ══════════════════════════════════════════════════════════════════
+function setNav(el) {
+  document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+  el.classList.add('active');
+}
+function scrollTo(id) {
+  document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'});
+}
+function activateStep(n) {
+  for(let i=1;i<=5;i++){
+    const s = document.getElementById('s'+i);
+    s.classList.remove('active','done');
+    if(i<n) s.classList.add('done');
+    if(i===n) s.classList.add('active');
+  }
+}
+function showTab(id, el) {
+  ['tab-parity','tab-ph','tab-time','tab-current'].forEach(t=>{
+    document.getElementById(t).classList.add('hidden');
+  });
+  document.getElementById(id).classList.remove('hidden');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// FILE HANDLING
+// ══════════════════════════════════════════════════════════════════
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag-over');
+  if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+
+function handleFile(file) {
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'binary'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws);
+      processData(rows, file.name);
+    } catch(err) {
+      alert('Could not read file: ' + err.message);
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
+function loadSampleData() {
+  processData(SAMPLE, 'sample_14_experiments.xlsx');
+}
+
+function processData(rows, filename) {
+  // Validate columns
+  const required = ['Time_min','Current_Density_A_m2','Initial_pH',
+                    'Fe_COD_Removal','Fe_Turbidity_Removal','Al_COD_Removal','Al_Turbidity_Removal'];
+  const cols = Object.keys(rows[0] || {});
+  const missing = required.filter(c => !cols.includes(c));
+  if(missing.length > 0) {
+    alert('Missing columns in your file:\n' + missing.join(', ') + '\n\nPlease download the template to see the correct format.');
+    return;
+  }
+
+  DATA = rows.map(r => ({
+    time:    +r.Time_min,
+    current: +r.Current_Density_A_m2,
+    pH:      +r.Initial_pH,
+    Fe_COD_Removal:       +r.Fe_COD_Removal,
+    Fe_Turbidity_Removal: +r.Fe_Turbidity_Removal,
+    Al_COD_Removal:       +r.Al_COD_Removal,
+    Al_Turbidity_Removal: +r.Al_Turbidity_Removal,
+  }));
+
+  document.getElementById('loadMsg').textContent =
+    `✅ Loaded "${filename}" — ${DATA.length} experiments found!`;
+
+  // Metrics summary
+  const feCOD = DATA.map(d=>d.Fe_COD_Removal);
+  const feTurb = DATA.map(d=>d.Fe_Turbidity_Removal);
+  document.getElementById('dataMetrics').innerHTML = `
+    <div class="metric-card"><div class="metric-label">Experiments</div><div class="metric-value metric-green">${DATA.length}</div></div>
+    <div class="metric-card"><div class="metric-label">Best Fe COD</div><div class="metric-value metric-red">${Math.max(...feCOD).toFixed(1)}%</div></div>
+    <div class="metric-card"><div class="metric-label">Best Fe Turb</div><div class="metric-value metric-red">${Math.max(...feTurb).toFixed(1)}%</div></div>
+    <div class="metric-card"><div class="metric-label">pH range</div><div class="metric-value metric-amber">${Math.min(...DATA.map(d=>d.pH))}–${Math.max(...DATA.map(d=>d.pH))}</div></div>
+  `;
+
+  // Table
+  document.getElementById('dataHead').innerHTML = `<tr>
+    <th>#</th><th>Time (min)</th><th>Current (A/m²)</th><th>pH</th>
+    <th class="td-fe">Fe COD%</th><th class="td-fe">Fe Turb%</th>
+    <th class="td-al">Al COD%</th><th class="td-al">Al Turb%</th>
+  </tr>`;
+  document.getElementById('dataBody').innerHTML = DATA.map((r,i) => `
+    <tr>
+      <td>${i+1}</td><td>${r.time}</td><td>${r.current}</td><td>${r.pH}</td>
+      <td class="td-fe td-num">${r.Fe_COD_Removal.toFixed(2)}</td>
+      <td class="td-fe td-num">${r.Fe_Turbidity_Removal.toFixed(2)}</td>
+      <td class="td-al td-num">${r.Al_COD_Removal.toFixed(2)}</td>
+      <td class="td-al td-num">${r.Al_Turbidity_Removal.toFixed(2)}</td>
+    </tr>`).join('');
+
+  document.getElementById('dataPreview').classList.remove('hidden');
+  document.getElementById('trainBtn').disabled = false;
+  activateStep(2);
+  scrollTo('train');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MIN-MAX SCALER
+// ══════════════════════════════════════════════════════════════════
+function fitScalerX() {
+  const X = DATA.map(d => [d.time, d.current, d.pH]);
+  const mins = [0,1,2].map(i => Math.min(...X.map(r=>r[i])));
+  const maxs = [0,1,2].map(i => Math.max(...X.map(r=>r[i])));
+  SCALER_X = {mins, maxs};
+  return X.map(r => r.map((v,i) => (maxs[i]===mins[i]) ? 0 : (v-mins[i])/(maxs[i]-mins[i])));
+}
+function transformX(row) {
+  const {mins,maxs} = SCALER_X;
+  return [row[0],row[1],row[2]].map((v,i)=>(maxs[i]===mins[i])?0:(v-mins[i])/(maxs[i]-mins[i]));
+}
+function fitScalerY(col) {
+  const vals = DATA.map(d=>d[col]);
+  const mn = Math.min(...vals), mx = Math.max(...vals);
+  SCALERS_Y[col] = {mn, mx};
+  return vals.map(v => (mx===mn)?0:(v-mn)/(mx-mn));
+}
+function inverseY(col, v) {
+  const {mn,mx} = SCALERS_Y[col];
+  return Math.min(100, Math.max(0, v*(mx-mn)+mn));
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SIMPLE ANN IN JAVASCRIPT (MLP with backprop)
+// ══════════════════════════════════════════════════════════════════
+function relu(x) { return Math.max(0, x); }
+function reluD(x) { return x > 0 ? 1 : 0; }
+function tanh_(x) { return Math.tanh(x); }
+function tanhD(x) { const t=Math.tanh(x); return 1-t*t; }
+function logistic(x) { return 1/(1+Math.exp(-x)); }
+function logisticD(x) { const s=logistic(x); return s*(1-s); }
+
+function getActivation(name) {
+  if(name==='relu')     return [relu,    reluD];
+  if(name==='tanh')     return [tanh_,   tanhD];
+  return [logistic, logisticD];
+}
+
+function randGaussian() {
+  let u=0,v=0;
+  while(u===0) u=Math.random();
+  while(v===0) v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+
+function createNetwork(layerSizes, activation) {
+  const [actFn, actFnD] = getActivation(activation);
+  const layers = [];
+  for(let l=0;l<layerSizes.length-1;l++){
+    const inSz = layerSizes[l], outSz = layerSizes[l+1];
+    const scale = Math.sqrt(2/inSz);
+    const W = Array.from({length:outSz},()=>Array.from({length:inSz},()=>randGaussian()*scale));
+    const b = Array.from({length:outSz},()=>0);
+    layers.push({W, b, inSz, outSz});
+  }
+  return {layers, actFn, actFnD, layerSizes};
+}
+
+function forward(net, x, isLast=false) {
+  let a = [...x];
+  const cache = [{a, z:null}];
+  for(let l=0;l<net.layers.length;l++){
+    const {W,b} = net.layers[l];
+    const z = W.map((row,i)=>row.reduce((s,w,j)=>s+w*a[j],0)+b[i]);
+    const isLastLayer = (l===net.layers.length-1);
+    a = z.map(v=>isLastLayer ? v : net.actFn(v));
+    cache.push({a, z});
+  }
+  return cache;
+}
+
+function trainNetwork(net, Xs, ys, alpha, maxIter) {
+  const lr = 0.01, n = Xs.length;
+  for(let it=0;it<maxIter;it++){
+    // Shuffle
+    const idx = Array.from({length:n},(_,i)=>i).sort(()=>Math.random()-0.5);
+    for(const i of idx){
+      const cache = forward(net, Xs[i]);
+      const nL = net.layers.length;
+      const deltas = Array(nL).fill(null);
+      // Output delta
+      const pred = cache[nL].a[0];
+      const err = pred - ys[i];
+      deltas[nL-1] = [2*err];
+      // Backprop
+      for(let l=nL-2;l>=0;l--){
+        const {W} = net.layers[l+1];
+        deltas[l] = cache[l+1].z.map((_,j)=>{
+          return W.reduce((s,row,k)=>s+row[j]*deltas[l+1][k],0) * net.actFnD(cache[l+1].z[j]);
+        });
+      }
+      // Update weights
+      for(let l=0;l<nL;l++){
+        const aIn = cache[l].a;
+        net.layers[l].W = net.layers[l].W.map((row,i)=>
+          row.map((w,j)=> w - lr*deltas[l][i]*aIn[j] - lr*alpha*w));
+        net.layers[l].b = net.layers[l].b.map((b,i)=> b - lr*deltas[l][i]);
+      }
+    }
+  }
+}
+
+function predict(net, x) {
+  const cache = forward(net, x, true);
+  return cache[cache.length-1].a[0];
+}
+
+// ══════════════════════════════════════════════════════════════════
+// LOOCV
+// ══════════════════════════════════════════════════════════════════
+function loocv(Xs, ys, layerSizes, activation, alpha, maxIter) {
+  const n = Xs.length;
+  const preds = [];
+  for(let i=0;i<n;i++){
+    const trainX = Xs.filter((_,j)=>j!==i);
+    const trainY = ys.filter((_,j)=>j!==i);
+    const net = createNetwork(layerSizes, activation);
+    trainNetwork(net, trainX, trainY, alpha, maxIter);
+    preds.push(predict(net, Xs[i]));
+  }
+  return preds;
+}
+
+function r2Score(ytrue, ypred) {
+  const mean = ytrue.reduce((a,b)=>a+b,0)/ytrue.length;
+  const ss_tot = ytrue.reduce((s,v)=>s+(v-mean)**2,0);
+  const ss_res = ytrue.reduce((s,v,i)=>s+(v-ypred[i])**2,0);
+  return 1 - ss_res/ss_tot;
+}
+function mae(ytrue, ypred) {
+  return ytrue.reduce((s,v,i)=>s+Math.abs(v-ypred[i]),0)/ytrue.length;
+}
+function rmse(ytrue, ypred) {
+  return Math.sqrt(ytrue.reduce((s,v,i)=>s+(v-ypred[i])**2,0)/ytrue.length);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// TRAIN ANN (main)
+// ══════════════════════════════════════════════════════════════════
+function log(msg, cls='') {
+  const el = document.getElementById('trainLog');
+  el.innerHTML += `<div class="log-line ${cls}">${msg}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+function setProgress(pct, txt) {
+  document.getElementById('progBar').style.width = pct+'%';
+  document.getElementById('progTxt').textContent = txt;
+}
+
+async function trainANN() {
+  if(!DATA) { alert('Please upload data first!'); return; }
+
+  document.getElementById('trainBtn').disabled = true;
+  document.getElementById('trainLog').innerHTML = '';
+  document.getElementById('accuracySection').classList.add('hidden');
+
+  const archStr  = document.getElementById('archSelect').value;
+  const activ    = document.getElementById('activSelect').value;
+  const alpha    = parseFloat(document.getElementById('alphaSelect').value);
+  const maxIter  = parseInt(document.getElementById('iterSelect').value);
+  const hiddenLayers = archStr.split(',').map(Number);
+
+  log(`// EC·ANN Training Started`);
+  log(`// Experiments: ${DATA.length} | Architecture: [3, ${hiddenLayers.join(', ')}, 1]`);
+  log(`// Activation: ${activ} | Alpha: ${alpha} | MaxIter: ${maxIter}`);
+  log(`// Scaling: MinMaxScaler → [0, 1]`,'log-dim');
+  log(`//`,'log-dim');
+
+  setProgress(5, 'Scaling data...');
+  await sleep(50);
+
+  const Xs_scaled = fitScalerX();
+  log(`// Input features scaled:`, 'log-dim');
+  log(`//   Time: [${SCALER_X.mins[0]},${SCALER_X.maxs[0]}] → [0,1]`, 'log-dim');
+  log(`//   Current: [${SCALER_X.mins[1]},${SCALER_X.maxs[1]}] → [0,1]`, 'log-dim');
+  log(`//   pH: [${SCALER_X.mins[2]},${SCALER_X.maxs[2]}] → [0,1]`, 'log-dim');
+
+  const layerSizes = [3, ...hiddenLayers, 1];
+  METRICS = {};
+  LOOCV_PREDS = {};
+  MODELS = {};
+
+  let step = 0;
+  for(const col of TARGETS) {
+    step++;
+    const label = TARGET_LABELS[col];
+    log(`//`,'log-dim');
+    log(`// Training: ${label}`);
+    setProgress(10 + step*20, `Training ${label}...`);
+    await sleep(20);
+
+    const ys_scaled = fitScalerY(col);
+
+    // LOOCV
+    log(`//   Running LOOCV (${DATA.length}-fold)...`,'log-dim');
+    await sleep(20);
+    const predsScaled = loocv(Xs_scaled, ys_scaled, layerSizes, activ, alpha, Math.floor(maxIter/3));
+    const predsOrig = predsScaled.map(p => inverseY(col, Math.max(0, Math.min(1, p))));
+    LOOCV_PREDS[col] = predsOrig;
+
+    const ytrue = DATA.map(d=>d[col]);
+    const r2  = r2Score(ytrue, predsOrig);
+    const maeV = mae(ytrue, predsOrig);
+    const rmseV = rmse(ytrue, predsOrig);
+    METRICS[col] = {r2, mae: maeV, rmse: rmseV};
+
+    // Train final model on ALL data
+    const net = createNetwork(layerSizes, activ);
+    trainNetwork(net, Xs_scaled, ys_scaled, alpha, maxIter);
+    MODELS[col] = net;
+
+    const rating = r2>=0.85?'Excellent':r2>=0.70?'Good':r2>=0.50?'Fair':'Needs more data';
+    log(`//   R² = ${r2.toFixed(4)}  MAE = ${maeV.toFixed(2)}%  → ${rating}`);
+  }
+
+  setProgress(100, 'Complete!');
+  log(`//`,'log-dim');
+  log(`// ✅ All 4 ANN models trained successfully`);
+  log(`// Use the optimizer below to get recommendations`,'log-dim');
+
+  // Accuracy cards
+  const cardsHtml = TARGETS.map(col => {
+    const m = METRICS[col];
+    const rating = m.r2>=0.85?'Excellent':m.r2>=0.70?'Good':m.r2>=0.50?'Fair':'More data needed';
+    const color = m.r2>=0.85?'metric-green':m.r2>=0.70?'metric-blue':m.r2>=0.50?'metric-amber':'metric-red';
+    return `<div class="metric-card">
+      <div class="metric-label">${TARGET_LABELS[col]}</div>
+      <div class="metric-value ${color}">${m.r2.toFixed(3)}</div>
+      <div class="metric-sub">R² · MAE=${m.mae.toFixed(1)}% · ${rating}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('accuracyCards').innerHTML = cardsHtml;
+  document.getElementById('accuracySection').classList.remove('hidden');
+
+  document.getElementById('trainBtn').disabled = false;
+  document.getElementById('optimBtn').disabled = false;
+  activateStep(4);
+
+  buildCharts();
+  scrollTo('optimize');
+}
+
+function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
+
+// ══════════════════════════════════════════════════════════════════
+// PREDICT SINGLE POINT
+// ══════════════════════════════════════════════════════════════════
+function annPredict(time, current, pH, col) {
+  const x = transformX([time, current, pH]);
+  const ys = predict(MODELS[col], x);
+  return inverseY(col, Math.max(0, Math.min(1, ys)));
+}
+
+// ══════════════════════════════════════════════════════════════════
+// OPTIMIZE
+// ══════════════════════════════════════════════════════════════════
+function runOptimize() {
+  if(!MODELS['Fe_COD_Removal']) { alert('Train the ANN first!'); return; }
+
+  const myPH   = parseFloat(document.getElementById('ipH').value);
+  const myCOD  = parseFloat(document.getElementById('iCOD').value);
+  const myTurb = parseFloat(document.getElementById('iTurb').value);
+  const myCol  = parseFloat(document.getElementById('iColour').value);
+  const elPref = document.getElementById('iElectrode').value;
+  const priPref= document.getElementById('iPriority').value;
+
+  const times    = [5,8,10,12,15,17,20,22,25];
+  const currents = [30,35,40,45,50,55,60];
+  const pHs      = [];
+  for(let p=5.5;p<=8.01;p+=0.25) pHs.push(+p.toFixed(2));
+
+  const electrodes = elPref==='both' ? ['Fe','Al'] : [elPref];
+  const allResults = {};
+
+  for(const el of electrodes) {
+    const rows = [];
+    for(const t of times) for(const j of currents) for(const p of pHs) {
+      const cod  = annPredict(t, j, p, `${el}_COD_Removal`);
+      const turb = annPredict(t, j, p, `${el}_Turbidity_Removal`);
+      const score = priPref==='cod' ? cod : priPref==='turb' ? turb : (cod+turb)/2;
+      rows.push({el,t,j,p,cod:+cod.toFixed(1),turb:+turb.toFixed(1),score:+score.toFixed(1)});
+    }
+    rows.sort((a,b)=>b.score-a.score);
+    allResults[el] = rows;
+  }
+
+  // Find overall winner
+  const winner = electrodes.reduce((best, el) =>
+    (!best || allResults[el][0].score > allResults[best][0].score) ? el : best, null);
+
+  let html = '';
+  for(const el of electrodes) {
+    const top  = allResults[el][0];
+    const top5 = allResults[el].slice(0,5);
+    const phDiff = (top.p - myPH).toFixed(2);
+    const phAct  = +phDiff > 0.1 ? `Add NaOH — raise pH by +${phDiff}` :
+                   +phDiff < -0.1 ? `Add HCl — lower pH by ${Math.abs(phDiff)}` :
+                   'No adjustment needed ✓';
+    const codOut  = Math.round(myCOD  * (1 - top.cod/100));
+    const turbOut = Math.round(myTurb * (1 - top.turb/100));
+    const colRem  = Math.min(90, Math.round(top.cod*0.9));
+    const colOut  = Math.round(myCol * (1 - colRem/100));
+    const elClass = el==='Fe'?'fe':'al';
+
+    html += `
+    <div class="result-block fade-in">
+      <div class="result-header ${elClass}">
+        <span class="result-title ${elClass}">${el==='Fe'?'🔴':'🔵'} ${el} Electrode — ANN Recommended Settings</span>
+        ${el===winner && electrodes.length>1 ? '<span class="badge-best">⭐ BEST OVERALL</span>' : ''}
+      </div>
+      <div class="result-body">
+        <div class="param-row">
+          <div class="param-item">
+            <div class="param-lbl">EC Time</div>
+            <div class="param-val">${top.t} <span style="font-size:14px;color:var(--muted)">min</span></div>
+          </div>
+          <div class="param-item">
+            <div class="param-lbl">Current Density</div>
+            <div class="param-val">${top.j} <span style="font-size:14px;color:var(--muted)">A/m²</span></div>
+          </div>
+          <div class="param-item">
+            <div class="param-lbl">Target pH → ${phAct}</div>
+            <div class="param-val">${top.p}</div>
+          </div>
+        </div>
+        <div class="removal-row">
+          <div class="removal-item">
+            <div class="removal-lbl">COD removal</div>
+            <div class="removal-pct metric-green">${top.cod}%</div>
+            <div class="removal-flow">${myCOD} → ~${codOut} mg/L</div>
+          </div>
+          <div class="removal-item">
+            <div class="removal-lbl">Turbidity removal</div>
+            <div class="removal-pct metric-blue">${top.turb}%</div>
+            <div class="removal-flow">${myTurb} → ~${turbOut} NTU</div>
+          </div>
+          <div class="removal-item">
+            <div class="removal-lbl">Colour removal</div>
+            <div class="removal-pct metric-amber">${colRem}%</div>
+            <div class="removal-flow">${myCol} → ~${colOut} Pt-Co</div>
+          </div>
+        </div>
+        <div style="margin-top:16px">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Top 5 ANN-predicted combinations</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Rank</th><th>Time (min)</th><th>Current (A/m²)</th><th>pH</th><th>COD%</th><th>Turb%</th><th>Score</th></tr></thead>
+              <tbody>${top5.map((r,i)=>`
+                <tr ${i===0?'style="background:rgba(0,212,170,0.05)"':''}>
+                  <td style="font-family:var(--mono)">${i===0?'⭐ ':''}#${i+1}</td>
+                  <td class="td-num">${r.t}</td><td class="td-num">${r.j}</td><td class="td-num">${r.p}</td>
+                  <td class="td-num td-fe">${r.cod}</td><td class="td-num td-fe">${r.turb}</td>
+                  <td class="td-num" style="color:var(--accent);font-weight:600">${r.score}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  document.getElementById('resultsArea').innerHTML = html;
+  document.getElementById('resultsArea').classList.remove('hidden');
+  activateStep(5);
+  scrollTo('resultsArea');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CHARTS
+// ══════════════════════════════════════════════════════════════════
+let chartInstances = {};
+
+function destroyChart(id) {
+  if(chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+}
+
+function makeScatterChart(canvasId, ytrue, ypred, color, label) {
+  destroyChart(canvasId);
+  const mn = Math.min(...ytrue,...ypred)-5, mx = Math.max(...ytrue,...ypred)+5;
+  chartInstances[canvasId] = new Chart(document.getElementById(canvasId), {
+    type:'scatter',
+    data:{
+      datasets:[
+        {label:'Perfect fit',data:[{x:mn,y:mn},{x:mx,y:mx}],type:'line',borderColor:'rgba(255,255,255,0.2)',borderDash:[5,5],pointRadius:0,borderWidth:1},
+        {label,data:ytrue.map((v,i)=>({x:v,y:ypred[i]})),backgroundColor:color,pointRadius:6,pointHoverRadius:8}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`Obs: ${ctx.parsed.x.toFixed(1)}% | Pred: ${ctx.parsed.y.toFixed(1)}%`}}},
+      scales:{
+        x:{title:{display:true,text:'Observed (%)',color:'#64748b'},ticks:{color:'#64748b'},grid:{color:'rgba(255,255,255,0.05)'},min:mn,max:mx},
+        y:{title:{display:true,text:'Predicted (%)',color:'#64748b'},ticks:{color:'#64748b'},grid:{color:'rgba(255,255,255,0.05)'},min:mn,max:mx}
+      }
+    }
+  });
+}
+
+function makeLineChart(canvasId, labels, datasets) {
+  destroyChart(canvasId);
+  chartInstances[canvasId] = new Chart(document.getElementById(canvasId), {
+    type:'line',
+    data:{labels, datasets},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#94a3b8',font:{family:'DM Mono',size:11}}}},
+      scales:{
+        x:{ticks:{color:'#64748b',font:{family:'DM Mono',size:10}},grid:{color:'rgba(255,255,255,0.05)'}},
+        y:{min:0,max:100,title:{display:true,text:'Removal %',color:'#64748b'},ticks:{color:'#64748b'},grid:{color:'rgba(255,255,255,0.05)'}}
+      }
+    }
+  });
+}
+
+function buildCharts() {
+  document.getElementById('chartsEmpty').style.display = 'none';
+
+  // Parity charts
+  const colors = {
+    Fe_COD_Removal:'rgba(239,68,68,0.8)',
+    Fe_Turbidity_Removal:'rgba(239,68,68,0.5)',
+    Al_COD_Removal:'rgba(59,130,246,0.8)',
+    Al_Turbidity_Removal:'rgba(59,130,246,0.5)'
+  };
+  const canvases = {
+    Fe_COD_Removal:'chartFeCOD',Fe_Turbidity_Removal:'chartFeTurb',
+    Al_COD_Removal:'chartAlCOD',Al_Turbidity_Removal:'chartAlTurb'
+  };
+  TARGETS.forEach(col => {
+    makeScatterChart(canvases[col], DATA.map(d=>d[col]), LOOCV_PREDS[col], colors[col], TARGET_LABELS[col]);
+  });
+
+  // Sensitivity: pH Effect
+  const pHRange = Array.from({length:20},(_,i)=>(5+i*0.2).toFixed(1));
+  makeLineChart('chartPhFe', pHRange, [
+    {label:'Fe COD%',data:pHRange.map(p=>+annPredict(15,50,+p,'Fe_COD_Removal').toFixed(1)),borderColor:'#ef4444',tension:0.4,pointRadius:3},
+    {label:'Fe Turb%',data:pHRange.map(p=>+annPredict(15,50,+p,'Fe_Turbidity_Removal').toFixed(1)),borderColor:'rgba(239,68,68,0.5)',tension:0.4,pointRadius:3,borderDash:[4,4]}
+  ]);
+  makeLineChart('chartPhAl', pHRange, [
+    {label:'Al COD%',data:pHRange.map(p=>+annPredict(15,30,+p,'Al_COD_Removal').toFixed(1)),borderColor:'#3b82f6',tension:0.4,pointRadius:3},
+    {label:'Al Turb%',data:pHRange.map(p=>+annPredict(15,30,+p,'Al_Turbidity_Removal').toFixed(1)),borderColor:'rgba(59,130,246,0.5)',tension:0.4,pointRadius:3,borderDash:[4,4]}
+  ]);
+
+  // Sensitivity: Time Effect
+  const timeRange = [5,7,9,11,13,15,17,19,21,23,25];
+  makeLineChart('chartTimeFe', timeRange, [
+    {label:'Fe COD%',data:timeRange.map(t=>+annPredict(t,50,7,'Fe_COD_Removal').toFixed(1)),borderColor:'#ef4444',tension:0.4,pointRadius:3},
+    {label:'Fe Turb%',data:timeRange.map(t=>+annPredict(t,50,7,'Fe_Turbidity_Removal').toFixed(1)),borderColor:'rgba(239,68,68,0.5)',tension:0.4,pointRadius:3,borderDash:[4,4]}
+  ]);
+  makeLineChart('chartTimeAl', timeRange, [
+    {label:'Al COD%',data:timeRange.map(t=>+annPredict(t,30,7,'Al_COD_Removal').toFixed(1)),borderColor:'#3b82f6',tension:0.4,pointRadius:3},
+    {label:'Al Turb%',data:timeRange.map(t=>+annPredict(t,30,7,'Al_Turbidity_Removal').toFixed(1)),borderColor:'rgba(59,130,246,0.5)',tension:0.4,pointRadius:3,borderDash:[4,4]}
+  ]);
+
+  // Sensitivity: Current Effect
+  const currRange = [30,35,40,45,50,55,60];
+  makeLineChart('chartCurrFe', currRange, [
+    {label:'Fe COD%',data:currRange.map(j=>+annPredict(15,j,7,'Fe_COD_Removal').toFixed(1)),borderColor:'#ef4444',tension:0.4,pointRadius:4},
+    {label:'Fe Turb%',data:currRange.map(j=>+annPredict(15,j,7,'Fe_Turbidity_Removal').toFixed(1)),borderColor:'rgba(239,68,68,0.5)',tension:0.4,pointRadius:4,borderDash:[4,4]}
+  ]);
+  makeLineChart('chartCurrAl', currRange, [
+    {label:'Al COD%',data:currRange.map(j=>+annPredict(15,j,7,'Al_COD_Removal').toFixed(1)),borderColor:'#3b82f6',tension:0.4,pointRadius:4},
+    {label:'Al Turb%',data:currRange.map(j=>+annPredict(15,j,7,'Al_Turbidity_Removal').toFixed(1)),borderColor:'rgba(59,130,246,0.5)',tension:0.4,pointRadius:4,borderDash:[4,4]}
+  ]);
+
+  CHARTS_BUILT = true;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// TEMPLATE DOWNLOAD
+// ══════════════════════════════════════════════════════════════════
+function downloadTemplate() {
+  const ws = XLSX.utils.json_to_sheet(SAMPLE);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'EC_Data');
+  XLSX.writeFile(wb, 'EC_Experiment_Template.xlsx');
+}
+</script>
+</body>
+</html>
